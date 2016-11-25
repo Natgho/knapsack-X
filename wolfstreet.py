@@ -3,7 +3,6 @@ from datetime import *
 from math import pow,sqrt
 from pprint import pprint
 
-
 # Get currency data from API
 def get_json_data(url):
     response = urllib.urlopen(url)
@@ -31,8 +30,9 @@ def get_specific_data(interval):
         )
     return total_date
 
+
 # calculates the correlation coefficient of each data set
-def calculate_correlation(currencies):
+def calculate_correlation_in_array(currencies):
     x_ort = 0
     y_ort = 0
     for count, currency in enumerate(currencies):
@@ -50,11 +50,13 @@ def calculate_correlation(currencies):
 
     return pay_toplam / payda_toplam
 
+
 # holds information about each currency
 class Currencies:
     def __init__(self, space):
         self.currencies_all_data = get_specific_data(space)
         self.currencies = {}
+        self.curr_and_corel = {}
 
     def get_currencies(self):
         return self.currencies_all_data
@@ -63,7 +65,7 @@ class Currencies:
         for keys, values in self.currencies_all_data.iteritems():
             for key, value in values.iteritems():
                 self.currencies[key] = 0
-        self.currencies['USD'] = 10
+#        self.currencies['USD'] = 10
         pprint(self.currencies)
 
     def calculate_correlation(self):
@@ -74,20 +76,27 @@ class Currencies:
                 else:
                     self.currencies[key] = []
                     self.currencies[key].append(value)
-        pprint(self.currencies)
+        # Check data
+        # pprint(self.currencies)
+
+    def calculate_currencies_correlation(self):
+        currencies = []
+        for key in self.currencies.iteritems():
+            self.curr_and_corel[calculate_correlation_in_array(key[1])] = key
+        for key,value in self.curr_and_corel.iteritems():
+            #print "bu ilk key",key,"bu ilk value",value[0],value[1]
+            current_name = value[0]
+            currents = value[1]
+            tmp_currency = Currencie(current_name,currents,key)
+            currencies.append(tmp_currency)
+        return currencies
+
+    def get_currency_info(self, current_name):
+        return self.curr_and_corel.get(current_name)
 
 
-
-# def calculate_standart_deviation(currencies):
-#     total_currency = 0
-#     deviation = 0
-#     for count,currency in enumerate(currencies):
-#         total_currency += currency
-#     print total_currency
-#     aritmethic_avg = total_currency / len(currencies)
-#     print aritmethic_avg
-#     for currency in currencies:
-#         deviation += pow(currency - aritmethic_avg, 2)
-#     deviation /= len(currencies) - 1
-#
-#     return sqrt(deviation)
+class Currencie:
+    def __init__(self,name, all_data,corelation):
+        self.name = name
+        self.all_data = all_data
+        self.corelation = corelation
