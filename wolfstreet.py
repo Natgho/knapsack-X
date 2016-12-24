@@ -1,8 +1,12 @@
-import urllib, json
-from datetime import *
-from math import pow, sqrt
-from pprint import pprint
+from __future__ import division
+import json
+import random
+import urllib
 import xml.etree.cElementTree as ET
+from datetime import *
+from math import pow
+from pprint import pprint
+
 
 
 # holds information about each currency
@@ -47,6 +51,7 @@ class Currencies:
 
     def get_currency_info(self, current_name):
         return self.curr_and_corel.get(current_name)
+
 
 class Currencie:
     def __init__(self, name, all_data, corelation):
@@ -125,5 +130,82 @@ def sort_and_add_indis(cl_currencies):
     return cl_currencies
 
 
-def create_2d_array():
-    pass
+class Generation:
+    def __init__(self, money=0, population=None, gen_size=3, population_size=10):
+        self.population_size = population_size
+        self.population = []
+        # If the population is defined, synchronize.
+        if population is not None:
+            self.population = population
+        # Else create new population
+        elif money != 0:
+            for gens in range(0, population_size):
+                tmp_chromozome = Chromozome()
+                for tmp_g in range(0, gen_size):
+                    tmp_chromozome.add_gen(random.randint(money / (population_size * 5), money / population_size))
+                self.population.append(tmp_chromozome)
+                # tmp_chromozome.print_gen()
+                del tmp_chromozome
+        else:
+            # New generation created and should do nothing...
+            pass
+
+    def get_population(self):
+        return self.population
+
+    def create_fx_values(self, currencies):
+        best_currencie_values = []
+        for currencie in currencies:
+            # Get all currencies last values
+            best_currencie_values.append(currencie.all_data.pop())
+
+        for chromozome in self.population:
+            tmp_fi = 0
+            for gen, best_value in zip(chromozome.gens, best_currencie_values):
+                tmp_fi = tmp_fi + gen * best_value
+            chromozome.fi = tmp_fi
+
+
+class Chromozome:
+    def __init__(self):
+        self.gens = []
+        self.fi = None
+        self.fitness_value = 0.0
+        self.choose_possibility = 0.0
+
+    def add_gen(self, gen):
+        self.gens.append(gen)
+
+    def return_gen(self):
+        return self.gens
+
+    def print_gen(self):
+        for gen in self.gens:
+            print gen,
+        print "\n"
+
+
+# For roulette method
+def assign_fitness_values(chromozomes):
+    chromozome_length = len(chromozomes)
+    for order, chromozome in enumerate(chromozomes):
+        fitness_value = 1 * ((chromozome_length - (order+1)) / (chromozome_length - 1))
+        chromozome.fitness_value = float(format(fitness_value, '.3f'))
+        print chromozome.fitness_value
+
+
+def roulette(population):
+    total_fx = 0.0
+    choose_random = []
+    after_generation = Generation()
+    pprint(after_generation.population)
+    for tmp in range(0, len(population)):
+        choose_random.append(float(format(random.uniform(0, 1), '.3f')))
+    for tmp_chromozome in population:
+        total_fx += tmp_chromozome.fitness_value
+    for tmp_c in population:
+        tmp_c.choose_possibility = tmp_c.fitness_value / total_fx
+
+
+
+
