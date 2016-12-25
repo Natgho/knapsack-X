@@ -1,7 +1,2 @@
-import random
-konusmak_isteme = []
-for tmp in range(0, 10):
-    konusmak_isteme.append(random.uniform(0, 1))
-
-for icerik in konusmak_isteme:
-    print float(format(random.uniform(0, 1), '.2f'))
+x = [10, 120, 30, 30, 45, 66, 55]
+print x[-1], x[0]

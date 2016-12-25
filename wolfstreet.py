@@ -6,7 +6,7 @@ import xml.etree.cElementTree as ET
 from datetime import *
 from math import pow
 from pprint import pprint
-
+import copy
 
 
 # holds information about each currency
@@ -15,16 +15,6 @@ class Currencies:
         self.currencies_all_data = get_specific_data(space)
         self.currencies = {}
         self.curr_and_corel = {}
-
-    def get_currencies(self):
-        return self.currencies_all_data
-
-    def testing(self):
-        for keys, values in self.currencies_all_data.iteritems():
-            for key, value in values.iteritems():
-                self.currencies[key] = 0
-                #        self.currencies['USD'] = 10
-        pprint(self.currencies)
 
     def calculate_correlation(self):
         for keys, values in self.currencies_all_data.iteritems():
@@ -137,12 +127,13 @@ class Generation:
         # If the population is defined, synchronize.
         if population is not None:
             self.population = population
+            self.population_size = len(population)
         # Else create new population
         elif money != 0:
             for gens in range(0, population_size):
                 tmp_chromozome = Chromozome()
                 for tmp_g in range(0, gen_size):
-                    tmp_chromozome.add_gen(random.randint(money / (population_size * 5), money / population_size))
+                    tmp_chromozome.add_gen(random.randint(0, money * 3))
                 self.population.append(tmp_chromozome)
                 # tmp_chromozome.print_gen()
                 del tmp_chromozome
@@ -161,8 +152,11 @@ class Generation:
 
         for chromozome in self.population:
             tmp_fi = 0
+            #print "fi degeri atamasi basliyor", tmp_fi
             for gen, best_value in zip(chromozome.gens, best_currencie_values):
-                tmp_fi = tmp_fi + gen * best_value
+                tmp_fi += tmp_fi + gen * best_value
+                #print "gen: %s currencie: %s sonuc %s" % (gen, best_value, tmp_fi)
+            #print "bir genin sonucu atandi:", tmp_fi
             chromozome.fi = tmp_fi
 
 
@@ -170,8 +164,10 @@ class Chromozome:
     def __init__(self):
         self.gens = []
         self.fi = None
+        self.fi_distance = 0.0
         self.fitness_value = 0.0
         self.choose_possibility = 0.0
+        self.gen_mutation_rate = []
 
     def add_gen(self, gen):
         self.gens.append(gen)
@@ -186,26 +182,127 @@ class Chromozome:
 
 
 # For roulette method
-def assign_fitness_values(chromozomes):
+def assign_fitness_values(chromozomes, money):
+    for person in chromozomes:
+        person.fi_distance = abs(person.fi-money)
+    chromozomes.sort(key=lambda x: x.fi_distance, reverse=False)
     chromozome_length = len(chromozomes)
     for order, chromozome in enumerate(chromozomes):
         fitness_value = 1 * ((chromozome_length - (order+1)) / (chromozome_length - 1))
         chromozome.fitness_value = float(format(fitness_value, '.3f'))
-        print chromozome.fitness_value
+    return chromozomes
 
 
-def roulette(population):
+def roulette(population, elite_person, start_money):
     total_fx = 0.0
     choose_random = []
     after_generation = Generation()
-    pprint(after_generation.population)
     for tmp in range(0, len(population)):
         choose_random.append(float(format(random.uniform(0, 1), '.3f')))
     for tmp_chromozome in population:
         total_fx += tmp_chromozome.fitness_value
     for tmp_c in population:
         tmp_c.choose_possibility = tmp_c.fitness_value / total_fx
+    for random_value in choose_random:
+        tmp_roulette = 0
+        piece = 0
+        tmp_person = Chromozome()
+        tmp_roulette += population[piece].choose_possibility
+        piece += 1
+        while random_value > tmp_roulette:
+            tmp_roulette += population[piece].choose_possibility
+            piece += 1
+        tmp_person.gens = population[piece-1].gens
+        tmp_person.fi = population[piece-1].fi
+        after_generation.population.append(tmp_person)
+        del tmp_person
+
+    # Add elite person in after generation
+    after_generation.population.sort(key=lambda x: x.fi, reverse=False)
+    first_person_fi = after_generation.population[0].fi
+    last_person_fi = after_generation.population[-1].fi
+    first_person_distance = abs(first_person_fi - start_money)
+    last_person_distance = abs(last_person_fi - start_money)
+    if first_person_distance > last_person_distance:
+        after_generation.population[0] = elite_person
+    else:
+        after_generation.population[-1] = elite_person
+    return after_generation
 
 
+def cross(generation):
+    # all persons gen lenth equal the other...
+    gen_size = len(generation.population[0].gens)
+    # Create new instance Generation class and copy cross_generation variable...
+    cross_generation = copy.deepcopy(generation)
+    cut_off_counter = 0
+    chromosome_size = len(generation.population)
+    cut_off_point = int(chromosome_size/2)
+    for order, person in enumerate(cross_generation.population):
+        if order < gen_size / 2:
+            person.gens[1] = generation.population[cut_off_point - 1 + order].gens[1]
+            person.gens[2] = generation.population[cut_off_point - 1 + order].gens[2]
+        else:
+            person.gens[1] = generation.population[cut_off_counter].gens[1]
+            person.gens[2] = generation.population[cut_off_counter].gens[2]
+            cut_off_counter += 1
+    return cross_generation
 
 
+def mutation(generation, mutation_possibility):
+    # Assign mutation change
+    for person in generation.population:
+        #print "genler:"
+        #print person.gens
+        for gen_mutation in person.gens:
+            person.gen_mutation_rate.append(float(format(random.uniform(0, 1), '.3f')))
+            #print "gen:", gen_mutation
+        #print "bir gen bitti"
+    #for person in generation.population:
+        #print "bir genin mutasyon oranlari:"
+        #print person.gen_mutation_rate
+    # Check and mutate gen
+    for person in generation.population:
+        for key, gen_possibility in enumerate(person.gen_mutation_rate):
+            # print "genin sirasi: %s, gen degeri: %s" % (key, gen_possibility)
+            if gen_possibility <= mutation_possibility:
+                person.gens[key] += 20.0
+                if(key == 2):
+                    break
+    return generation
+
+
+def find_best_person(generation, money):
+    # generation.population.sort(key=lambda x: x.fi, reverse=False)
+    best_person = None
+    tmp_distance = abs(money-generation.population[-1].fi_distance)
+    for person in generation.population:
+        if person.fi_distance < tmp_distance:
+            tmp_distance = person.fi_distance
+            best_person = copy.deepcopy(person)
+    return best_person
+
+
+def genetic_loop(start_money, cl_sorted_currencies, mutation_possibility, cycle_size):
+    all_generation = []
+    tmp_generation = Generation(money=start_money)
+    tmp_generation.create_fx_values(cl_sorted_currencies)
+    tmp_generation.population = assign_fitness_values(tmp_generation.population, start_money)
+    all_generation.append(tmp_generation)
+    for tmp in range(0, cycle_size):
+        elite_person = tmp_generation.population[0]
+        tmp_generation.population = assign_fitness_values(tmp_generation.population,start_money)
+        tmp_after_generation = copy.deepcopy(roulette(tmp_generation.population, elite_person, start_money))
+        tmp_after_generation = cross(tmp_after_generation)
+        tmp_after_generation = mutation(tmp_after_generation, mutation_possibility)
+        all_generation.append(tmp_after_generation)
+        tmp_generation = copy.deepcopy(tmp_after_generation)
+    for order, generation in enumerate(all_generation):
+        print "%s . jenerasyon birey amac fonk degerleri:" % str(order +1)
+        for person in generation.population:
+            print person.fi
+        print "%s . jenerasyon birey genleri:" % str(order +1)
+        for person in generation.population:
+            print person.gens
+    best_person = find_best_person(all_generation.pop(),start_money)
+    return best_person
